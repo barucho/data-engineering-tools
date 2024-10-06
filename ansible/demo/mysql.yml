@@ -1,0 +1,37 @@
+- hosts: all
+  gather_facts: true
+  become: yes
+  pre_tasks:
+    - include: tasks/vault_get_secrets.yml
+      tags:
+      - always
+      no_log: True
+      run_once: True
+    #- include: tasks/db_get_info.yml
+    #  tags:
+    #  - always
+  roles:
+    - { role: count-affected-hosts, tags: ['r_debug'] }
+    - { role: common, tags: ['r_common'] }
+    - { role: dbutils, tags: ['r_dbutils'] }
+    - { role: mysql-install, tags: ['r_mysql_install'] } 
+    - { role: mysql-config, tags: ['r_mysql_config'] } 
+    - { role: orchestrator-client, tags: ['r_orch'] }
+    - { role: prometheus-exporter, tags: ['r_monitoring'] }
+    - { role: pmm, tags: ['r_pmm'] } #### ---> XX Need to add cluster_name to sheped table
+    - { role: consul, tags: ['r_consul'] }
+    - { role: security-guardium-gim, tags: ['r_guardium_gim_install'] } ## installation of guardium gim agent
+    - { role: mysql-backup-aws-snap , tags: ['r_backup']}
+    #########- { role: mysql-replication , tags: ['r_new_cluster']}
+  vars_files:
+      - vars/mysql.yml
+      - vars/vault_cred.yml
+  vars:
+    db_type: mysql
+    cluster_type: mysql
+    group_cluster_name: "{{ cluster_name | replace('-','_') }}"
+    master_host: "{{ groups[cluster_type + '_' + group_cluster_name] | intersect(groups['master']) | first }}"
+    co_master_host: "{{ groups[cluster_type + '_' + group_cluster_name] | intersect(groups['co-master']) | first }}"
+    backup_host: "{{ groups[cluster_type + '_' + group_cluster_name] | intersect(groups['backup']) | first }}"
+    bi_host: "{{ groups[cluster_type + '_' + group_cluster_name] | intersect(groups['bi']) | first }}"
+    all_hosts_in_cluster: "{{ groups[cluster_type + '_' + group_cluster_name] }}"
